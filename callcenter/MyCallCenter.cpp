@@ -121,7 +121,6 @@ std::vector<int> MyCallCenter::distributeWork(){
             int ansWeight = findexpWeightedWaitTime(this->answered[i], this->time);
             int empWeight = findexpWeightedWaitTime(emp1->call, this->time);
             if (ansWeight > empWeight){
-                int temp = emp1->call->id;
                 (this->answered).push_back(emp1->call);
                 emp1->call = this->answered[i];
                 this->remove(result, empId1, i);
