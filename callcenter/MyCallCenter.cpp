@@ -2,6 +2,49 @@
 #include <algorithm>
 #include <iostream>
 
+bool sortBySkill(Employee lhs, Employee rhs){
+    return (lhs.skill < rhs.skill);
+}
+
+int findexpWeightedWaitTime(Call* c, int time){                          //Calculate the expected weighted wait time
+    int result;
+    result = c->importance * (time + c->work_required - c->work_performed + 1 - c->recieved);
+    return result;
+}
+
+bool sortByWeightedWaitTime(Call* lhs, Call* rhs, int time){             //Compare the expected weighted wait time
+    int leftWeight, rightWeight;
+    leftWeight = findexpWeightedWaitTime(lhs, time);
+    rightWeight = findexpWeightedWaitTime(rhs, time);
+    return (leftWeight < rightWeight);
+}
+
+void sortEmployeeSkill(std::vector<Employee>& result){
+    int len = result.size();
+    for (int i = 0; i < len; i++){
+        for (int j = i + 1; j < len; j++){
+            if (sortBySkill(result[j], result[i])){
+                Employee temp = result[i];
+                result[i] = result[j];
+                result[j] = temp;
+            }
+        }
+    }
+}
+
+void sortExpWeightedWaitTime(std::vector<Call*>& result, int time){
+    int len = result.size();
+    for (int i = 0; i < len; i++){
+        for (int j = i + 1; j < len; j++){
+            if (sortByWeightedWaitTime(result[j], result[i], time)){
+                Call* temp = result[i];
+                result[i] = result[j];
+                result[j] = temp;
+            }
+        }
+    }
+}
+
 CallCenter* CallCenter::create(std::vector<Employee> employees) {
     return new MyCallCenter(employees);
 }
@@ -10,46 +53,110 @@ CallCenter* CallCenter::create(std::vector<Employee> employees) {
 MyCallCenter::MyCallCenter(std::vector<Employee> employeeInfo){
     this->mEmployees = employeeInfo;
     this->EmployeeSorted = employeeInfo;
-    std::sort((this->EmployeeSorted).begin(), (this->EmployeeSorted).end(), this->sortBySkill);
+    sortEmployeeSkill(this->EmployeeSorted);
+    for (unsigned int i = 0; i < (this->EmployeeSorted).size(); i++){
+        std::cout<<this->EmployeeSorted[i].id<<" "<<this->EmployeeSorted[i].skill<<std::endl;
+    }
 }
 
 MyCallCenter::~MyCallCenter(){
 
 }
 
-bool MyCallCenter::sortBySkill(const Employee& lhs, const Employee& rhs){
-    return (lhs.skill < rhs.skill);
-}
-
-int MyCallCenter::findexpWeightedWaitTime(Call c){
-    int result;
-    result = c.importance * (this->time + c.work_required - c.work_performed + 1 - c.recieved);
-    return result;
-}
-
-bool MyCallCenter::sortByWeightedWaitTime(const Call& lhs, const Call& rhs){
-    int leftWeight, rightWeight;
-    leftWeight = this->findexpWeightedWaitTime(lhs);
-    rightWeight = this->findexpWeightedWaitTime(rhs);
-    return (leftWeight < rightWeight);
-}
-
-int MyCallCenter::findAble(Call* c){
+int MyCallCenter::findAblePosSorted(Call* c){
     for (auto itr = (this->EmployeeSorted).begin(); itr != (this->EmployeeSorted).end(); itr++){
-        if (itr->skill >= c->difficulty) return (itr->id);
+        if (itr->skill >= c->difficulty) return (itr - (this->EmployeeSorted).begin());
     }
     return -1;
 }
 
-std::vector<int> MyCallCenter::distribute(){
+int MyCallCenter::findAble(Call* c){
+    int pos = this->findAblePosSorted(c);
+    if (pos != -1){
+        return (this->EmployeeSorted[pos]).id;
+    }
+    return -1;
+}
+
+void MyCallCenter::remove(std::vector<int>& action, int indexAction, int indexAns){
+    action[indexAction] = (this->answered[indexAns])->id;
+    (this->answered).erase((this->answered).begin() + indexAns);
+}
+
+std::vector<int> MyCallCenter::distributeWork(){
+    std::vector<int> result;
+    bool empIndicator[(this->mEmployees).size()];
+    result.resize((this->mEmployees).size(), 0);
+    for (unsigned int i = 0; i < (this->mEmployees).size(); i++){
+        empIndicator[i] = true;
+    }
     int ansLen = (this->answered).size();
+    std::cout<<"Remaining to be answered num: "<<ansLen<<std::endl;
+
     for (int i = ansLen - 1; i >= 0; i--){
-        int empId = this->findAble(this->answered[i]);
-        Employee emp = this->mEmployees[empId];
-        if (!emp.call){
-            
+        int pos = this->findAblePosSorted(this->answered[i]);
+        int empId1 = this->findAble(this->answered[i]);
+        Employee* emp1 = &(this->mEmployees[empId1]);
+        if (!emp1->call){                //Empty case for just able employee
+            emp1->call = this->answered[i];
+            this->remove(result, empId1, i);
+            if (this->lastResult[empId1] != emp1->call->id) empIndicator[empId1] = false;
+            std::cout<<"In empty case for just able employee with id: "<<empId1<<std::endl;
+            continue;
+        }
+        else{
+            int empId2;
+            Employee* emp2;
+            bool tempIndicator = false;
+            for (unsigned int j = pos; j < (this->EmployeeSorted).size(); j++){
+                empId2 = (this->EmployeeSorted[j]).id;
+                emp2 = &(this->mEmployees[empId2]);
+                if (!emp2->call){                                           //Empty case for overqualified employee
+                    emp2->call = this->answered[i];
+                    this->remove(result, empId2, i);
+                    if (this->lastResult[empId2] != emp2->call->id) empIndicator[empId2] = false;
+                    tempIndicator = true;
+                    std::cout<<"In empty case for overqualified employee with id: "<<empId2<<std::endl;
+                    break;
+                }
+            }
+            if (tempIndicator) continue;
+        }
+
+        if (empIndicator[empId1]){                                          //Case for optimizing the expected weighted time
+            int ansWeight = findexpWeightedWaitTime(this->answered[i], this->time);
+            int empWeight = findexpWeightedWaitTime(emp1->call, this->time);
+            if (ansWeight > empWeight){
+                int temp = emp1->call->id;
+                (this->answered).push_back(emp1->call);
+                emp1->call = this->answered[i];
+                this->remove(result, empId1, i);
+                empIndicator[empId1] = false;
+                std::cout<<"In case for optimizing the expected weighted time, changing call_id "<<temp<<" to call_id "<<emp1->call->id<<std::endl;
+            }
         }
     }
+    sortExpWeightedWaitTime(this->answered, this->time);
+
+    for (unsigned int i = 0; i < result.size(); i++){                                //Do the calls or finish the calls or learn the call
+        Employee* emp = &(this->mEmployees[i]);
+        if (empIndicator[i] && emp->call){
+            if (emp->call->work_required > 0 && emp->call->work_performed == emp->call->work_required){
+                result[i] = -1;
+            }
+            else if (emp->call->work_required > 0){
+                result[i] = emp->call->id;
+                emp->call->work_performed++;
+                std::cout<<"Here indicates work performed for employee "<<i<<" on call_id "<<result[i]<<", "
+                         <<(emp->call->work_required - emp->call->work_performed)<<" minutes left."<<std::endl;
+            }
+            else{
+                result[i] = emp->call->id;
+            }
+        }
+    }
+
+    return result;
 }
 
 std::vector<int> MyCallCenter::calls(int minute, const std::vector<int>& call_ids){
@@ -57,28 +164,59 @@ std::vector<int> MyCallCenter::calls(int minute, const std::vector<int>& call_id
     for (auto id: call_ids){
         (this->unanswerd).push(id);
     }
-    std::vector<int> result = this->distribute();
+    std::vector<int> result = this->distributeWork();
+    std::cout<<"After distribution: ";
+    for (unsigned int i = 0; i < result.size(); i++){
+        std::cout<<result[i]<<" ";
+    }
+    std::cout<<std::endl;
 
     for (auto itr = result.begin(); itr != result.end(); itr++){
         if (*itr == 0 && (this->unanswerd).size() > 0){                     //Answer unanswered calls if there's remaining employees
             *itr = (this->unanswerd).front();
             (this->unanswerd).pop();
+            Call* ctemp = new Call{*itr, this->time, -1, -1, -1, -1};
+            Employee* empTemp = &(this->mEmployees[itr - result.begin()]);
+            empTemp->call = ctemp;
             continue;
         }
         if (*itr == -1){                                                    //Finish calls
-            Call cFin = this->mEmployees[itr - result.begin()].call;
+            Call* cFin = this->mEmployees[itr - result.begin()].call;
             this->mEmployees[itr - result.begin()].call = nullptr;
             delete cFin;
         }
     }
+
+    std::cout<<"After processing unanswered calls: ";
+    for (unsigned int i = 0; i < result.size(); i++){
+        std::cout<<result[i]<<" ";
+    }
+    std::cout<<std::endl;
+
+    this->lastResult = result;
     return result;
 }
 
 void MyCallCenter::learn(int minute, const std::vector<Call>& calls){
     this->time = minute;
     for (auto call: calls){
-        Call c = new Call(call);
-        (this->answered).push_back(temp);
+        Call* c = new Call(call);
+        std::cout<<"New call_id: "<<call.id<<", work required: "<<call.work_required<<", work performed: "<<call.work_performed<<", difficulty: "<<call.difficulty<<std::endl;
+        (this->answered).push_back(c);
+        for (auto& emp: this->mEmployees){
+            if (!emp.call) continue;
+            if ((emp.call)->id == c->id){
+                Call* temp = emp.call;
+                emp.call = nullptr;
+                delete temp;
+                break;
+            }
+        }
     }
-    std::sort((this->answered).begin(), (this->answered).end(), this->sortByWeightedWaitTime);
+    sortExpWeightedWaitTime(this->answered, this->time);
+    std::cout<<"---------\n";
+}
+
+void MyCallCenter::printInfo(){
+    std::cout<<"In minute "<<this->time;
 }

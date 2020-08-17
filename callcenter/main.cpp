@@ -53,51 +53,51 @@ std::vector<Call> parse_calls(int minute, const std::string& line) {
 
 
 int main(int argc, char** argv) {
-  if(argc != 3) {
-    std::cerr << "USAGE: ./callcenter [employee-file] [call-file]\n";
-    std::exit(1);
-  }
-
-  // Increase this to get more output!
-  int verbosity = 0;
-
-  CallCenter* center = nullptr;
-
-  try {
-    std::vector<Employee> employees = parse_employees(argv[1]);
-    Validator validator(employees, verbosity);
-    center = CallCenter::create(employees);
-    validator.roster();
-
-    int minute = 0;
-    std::string line;
-    std::ifstream callfile(argv[2]);
-    while(std::getline(callfile, line)) {
-      std::vector<Call> calls = parse_calls(minute, line);
-
-      // Get any incoming calls and decide what to do:
-      std::vector<int> call_ids = validator.calls(minute, calls);
-      std::vector<int> actions  = center->calls(minute, call_ids);
-
-      // Learn the details about any newly-answered calls:
-      std::vector<Call> learned = validator.validate(minute, actions);
-      center->learn(minute, learned);
-      minute += 1;
+    if(argc != 3) {
+        std::cerr << "USAGE: ./callcenter [employee-file] [call-file]\n";
+        std::exit(1);
     }
 
-    validator.summarize();
-  }
-  catch(const validation_error& e) {
-    std::cerr << "Inavlid action: " << e.what() << "\n";
-    delete center;
-    std::exit(1);
-  }
-  catch(const std::exception& e) {
-    std::cerr << "Unexpected exception: " << e.what() << "\n";
-    delete center;
-    std::exit(1);
-  }
+    // Increase this to get more output!
+    int verbosity = 4;
 
-  delete center;
-  return 0;
+    CallCenter* center = nullptr;
+
+    try {
+        std::vector<Employee> employees = parse_employees(argv[1]);
+        Validator validator(employees, verbosity);
+        center = CallCenter::create(employees);
+        validator.roster();
+
+        int minute = 0;
+        std::string line;
+        std::ifstream callfile(argv[2]);
+        while(std::getline(callfile, line)) {
+        std::vector<Call> calls = parse_calls(minute, line);
+
+        // Get any incoming calls and decide what to do:
+        std::vector<int> call_ids = validator.calls(minute, calls);
+        std::vector<int> actions  = center->calls(minute, call_ids);
+
+        // Learn the details about any newly-answered calls:
+        std::vector<Call> learned = validator.validate(minute, actions);
+        center->learn(minute, learned);
+        minute += 1;
+        }
+
+        validator.summarize();
+    }
+    catch(const validation_error& e) {
+        std::cerr << "Inavlid action: " << e.what() << "\n";
+        delete center;
+        std::exit(1);
+    }
+    catch(const std::exception& e) {
+        std::cerr << "Unexpected exception: " << e.what() << "\n";
+        delete center;
+        std::exit(1);
+    }
+
+    delete center;
+    return 0;
 }
