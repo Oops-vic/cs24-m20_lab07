@@ -34,7 +34,6 @@ public:
 
     // Other Member Functions
     std::vector<int> distributeWork();                                      //Distribute calls in answered vector to employees
-    void printInfo();
 };
 
 #endif

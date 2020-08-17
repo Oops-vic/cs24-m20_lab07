@@ -54,9 +54,6 @@ MyCallCenter::MyCallCenter(std::vector<Employee> employeeInfo){
     this->mEmployees = employeeInfo;
     this->EmployeeSorted = employeeInfo;
     sortEmployeeSkill(this->EmployeeSorted);
-    for (unsigned int i = 0; i < (this->EmployeeSorted).size(); i++){
-        std::cout<<this->EmployeeSorted[i].id<<" "<<this->EmployeeSorted[i].skill<<std::endl;
-    }
 }
 
 MyCallCenter::~MyCallCenter(){
@@ -91,7 +88,6 @@ std::vector<int> MyCallCenter::distributeWork(){
         empIndicator[i] = true;
     }
     int ansLen = (this->answered).size();
-    std::cout<<"Remaining to be answered num: "<<ansLen<<std::endl;
 
     for (int i = ansLen - 1; i >= 0; i--){
         int pos = this->findAblePosSorted(this->answered[i]);
@@ -101,7 +97,6 @@ std::vector<int> MyCallCenter::distributeWork(){
             emp1->call = this->answered[i];
             this->remove(result, empId1, i);
             if (this->lastResult[empId1] != emp1->call->id) empIndicator[empId1] = false;
-            std::cout<<"In empty case for just able employee with id: "<<empId1<<std::endl;
             continue;
         }
         else{
@@ -116,7 +111,6 @@ std::vector<int> MyCallCenter::distributeWork(){
                     this->remove(result, empId2, i);
                     if (this->lastResult[empId2] != emp2->call->id) empIndicator[empId2] = false;
                     tempIndicator = true;
-                    std::cout<<"In empty case for overqualified employee with id: "<<empId2<<std::endl;
                     break;
                 }
             }
@@ -132,7 +126,6 @@ std::vector<int> MyCallCenter::distributeWork(){
                 emp1->call = this->answered[i];
                 this->remove(result, empId1, i);
                 empIndicator[empId1] = false;
-                std::cout<<"In case for optimizing the expected weighted time, changing call_id "<<temp<<" to call_id "<<emp1->call->id<<std::endl;
             }
         }
     }
@@ -147,8 +140,6 @@ std::vector<int> MyCallCenter::distributeWork(){
             else if (emp->call->work_required > 0){
                 result[i] = emp->call->id;
                 emp->call->work_performed++;
-                std::cout<<"Here indicates work performed for employee "<<i<<" on call_id "<<result[i]<<", "
-                         <<(emp->call->work_required - emp->call->work_performed)<<" minutes left."<<std::endl;
             }
             else{
                 result[i] = emp->call->id;
@@ -165,11 +156,6 @@ std::vector<int> MyCallCenter::calls(int minute, const std::vector<int>& call_id
         (this->unanswerd).push(id);
     }
     std::vector<int> result = this->distributeWork();
-    std::cout<<"After distribution: ";
-    for (unsigned int i = 0; i < result.size(); i++){
-        std::cout<<result[i]<<" ";
-    }
-    std::cout<<std::endl;
 
     for (auto itr = result.begin(); itr != result.end(); itr++){
         if (*itr == 0 && (this->unanswerd).size() > 0){                     //Answer unanswered calls if there's remaining employees
@@ -187,12 +173,6 @@ std::vector<int> MyCallCenter::calls(int minute, const std::vector<int>& call_id
         }
     }
 
-    std::cout<<"After processing unanswered calls: ";
-    for (unsigned int i = 0; i < result.size(); i++){
-        std::cout<<result[i]<<" ";
-    }
-    std::cout<<std::endl;
-
     this->lastResult = result;
     return result;
 }
@@ -201,7 +181,6 @@ void MyCallCenter::learn(int minute, const std::vector<Call>& calls){
     this->time = minute;
     for (auto call: calls){
         Call* c = new Call(call);
-        std::cout<<"New call_id: "<<call.id<<", work required: "<<call.work_required<<", work performed: "<<call.work_performed<<", difficulty: "<<call.difficulty<<std::endl;
         (this->answered).push_back(c);
         for (auto& emp: this->mEmployees){
             if (!emp.call) continue;
@@ -214,9 +193,4 @@ void MyCallCenter::learn(int minute, const std::vector<Call>& calls){
         }
     }
     sortExpWeightedWaitTime(this->answered, this->time);
-    std::cout<<"---------\n";
-}
-
-void MyCallCenter::printInfo(){
-    std::cout<<"In minute "<<this->time;
 }
